@@ -1,0 +1,14 @@
+# Fichiers compilés Java (régénérés à la compilation, inutile de les versionner)
+*.class
+
+# Base de données SQLite : créée et amorcée automatiquement au premier lancement
+# du programme (voir BaseDeDonnees.java). Ne pas versionner pour que chaque
+# personne qui clone le dépôt reparte avec un inventaire "neuf".
+GestionLocation.db
+GestionLocation.db-journal
+GestionLocation.db-wal
+GestionLocation.db-shm
+
+# Fichiers système
+.DS_Store
+__MACOSX/
