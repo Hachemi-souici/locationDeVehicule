@@ -5,6 +5,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Université du Québec à Montréal (UQAM) INF1120 - 010 - Hiver 2025 Travail
@@ -21,7 +23,7 @@ public class GestionVehiculesDisponibles {
 
     // Déclaration des constantes
     public static final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm:ss");
-    private static VehiculeDisponible[] lesVehiculesDisponibles = new VehiculeDisponible[6];
+    private static List<VehiculeDisponible> lesVehiculesDisponibles = new ArrayList<>();
 
     /**
      * Charge les données des différents véhicules disponibles à partir de la
@@ -38,13 +40,14 @@ public class GestionVehiculesDisponibles {
     public static void chargerVehiculesDisponibles() {
         String requete = "SELECT type_vehicule, grandeur_vehicule, prix_location_par_jour, "
                 + "prix_assurance_par_jour, nombre_vehicules_disponibles FROM vehicules_disponibles";
-        int index = 0;
+
+        lesVehiculesDisponibles.clear();
 
         try {
             Connection connexion = BaseDeDonnees.obtenirConnexion();
             try (Statement instruction = connexion.createStatement(); ResultSet resultat = instruction.executeQuery(requete)) {
 
-                while (resultat.next() && index < lesVehiculesDisponibles.length) {
+                while (resultat.next()) {
                     char typeVehicule = resultat.getString("type_vehicule").charAt(0);
                     char grandeurVehicule = resultat.getString("grandeur_vehicule").charAt(0);
                     float prixLocationParJour = (float) resultat.getDouble("prix_location_par_jour");
@@ -53,12 +56,46 @@ public class GestionVehiculesDisponibles {
 
                     Vehicule vehicule = new Vehicule(typeVehicule, grandeurVehicule, prixLocationParJour, prixAssuranceParJour);
                     VehiculeDisponible vehiculeDisponible = new VehiculeDisponible(vehicule, nombreVehicules);
-                    lesVehiculesDisponibles[index++] = vehiculeDisponible;
+                    lesVehiculesDisponibles.add(vehiculeDisponible);
                 }
             }
         } catch (SQLException e) {
             System.out.println("Erreur d'accès à la base de données lors du chargement de l'inventaire : " + e.getMessage());
         }
+    }
+
+    /**
+     * Ajoute une nouvelle combinaison type/grandeur de véhicule à
+     * l'inventaire, ou met à jour ses prix et son stock si elle existe déjà.
+     * Utilisée uniquement par l'interface d'administration.
+     *
+     * @param typeVehicule le type du véhicule
+     * @param grandeurVehicule la grandeur du véhicule
+     * @param prixLocationParJour le prix de location par jour
+     * @param prixAssuranceParJour le prix de l'assurance par jour
+     * @param nombreVehiculesDisponibles le nombre de véhicules disponibles
+     * @throws SQLException si l'opération échoue
+     */
+    public static void ajouterOuMettreAJourVehiculeDisponible(char typeVehicule, char grandeurVehicule,
+            float prixLocationParJour, float prixAssuranceParJour, int nombreVehiculesDisponibles) throws SQLException {
+        String requete = "INSERT INTO vehicules_disponibles "
+                + "(type_vehicule, grandeur_vehicule, prix_location_par_jour, prix_assurance_par_jour, nombre_vehicules_disponibles) "
+                + "VALUES (?, ?, ?, ?, ?) "
+                + "ON CONFLICT(type_vehicule, grandeur_vehicule) DO UPDATE SET "
+                + "prix_location_par_jour = excluded.prix_location_par_jour, "
+                + "prix_assurance_par_jour = excluded.prix_assurance_par_jour, "
+                + "nombre_vehicules_disponibles = excluded.nombre_vehicules_disponibles";
+
+        try (var instruction = BaseDeDonnees.obtenirConnexion().prepareStatement(requete)) {
+            instruction.setString(1, String.valueOf(typeVehicule));
+            instruction.setString(2, String.valueOf(grandeurVehicule));
+            instruction.setDouble(3, prixLocationParJour);
+            instruction.setDouble(4, prixAssuranceParJour);
+            instruction.setInt(5, nombreVehiculesDisponibles);
+            instruction.executeUpdate();
+        }
+
+        chargerVehiculesDisponibles();
     }
 
     /**
@@ -226,16 +263,23 @@ public class GestionVehiculesDisponibles {
         System.out.println("    Nombre de véhicules disponibles dans l'inventaire");
         System.out.println("    ***************************************************");
 
-        // Entêtes des colonnes
-        System.out.println("    Grandeur           Hybride        Électrique");
-        System.out.println("    ********************************************");
+        List<Character> types = CatalogueVehicules.obtenirTypesActifs();
+        List<Character> grandeurs = CatalogueVehicules.obtenirGrandeursActives();
 
-        String[] grandeurs = {"Petit", "Intermédiaire", "Grand"};
-        char[] codesGrandeurs = {Vehicule.PETIT, Vehicule.INTERMEDIAIRE, Vehicule.GRAND};
-        for (int i = 0; i < grandeurs.length; i++) {
-            int hybrideDisponibles = GestionVehiculesDisponibles.obtenirNombreVehiculesDisponibles(Vehicule.HYBRIDE, codesGrandeurs[i]);
-            int electriqueDisponibles = GestionVehiculesDisponibles.obtenirNombreVehiculesDisponibles(Vehicule.ELECTRIQUE, codesGrandeurs[i]);
-            System.out.printf("    %-16s %-12d %-12d%n", grandeurs[i], hybrideDisponibles, electriqueDisponibles);
+        // Entêtes des colonnes (générées dynamiquement selon les types actifs du catalogue)
+        StringBuilder entete = new StringBuilder(String.format("    %-16s", "Grandeur"));
+        for (char type : types) {
+            entete.append(String.format("%-15s", CatalogueVehicules.obtenirDescriptionType(type)));
+        }
+        System.out.println(entete);
+        System.out.println("    " + "*".repeat(Math.max(0, entete.length() - 4)));
+
+        for (char grandeur : grandeurs) {
+            StringBuilder ligne = new StringBuilder(String.format("    %-16s", CatalogueVehicules.obtenirDescriptionGrandeur(grandeur)));
+            for (char type : types) {
+                ligne.append(String.format("%-15d", obtenirNombreVehiculesDisponibles(type, grandeur)));
+            }
+            System.out.println(ligne);
         }
 
         // Afficher la fin de l'encadré

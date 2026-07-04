@@ -19,6 +19,7 @@ import java.awt.BorderLayout;
 import java.awt.Frame;
 import java.awt.event.ActionEvent;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Onglet "Facturer une location" : équivalent graphique de l'option 1 du
@@ -44,6 +45,8 @@ public class PanelLocation extends JPanel {
 
     private JComboBox<String> comboType;
     private JComboBox<String> comboGrandeur;
+    private List<Character> typesDisponibles;
+    private List<Character> grandeursDisponibles;
     private JSpinner spinnerNombreVehicules;
     private JSpinner spinnerNombreJours;
     private JCheckBox caseAssurance;
@@ -74,8 +77,17 @@ public class PanelLocation extends JPanel {
         JPanel panel = new JPanel(new GridLayout(2, 6, 5, 5));
         panel.setBorder(javax.swing.BorderFactory.createTitledBorder("Ajouter un véhicule à la location"));
 
-        comboType = new JComboBox<>(new String[]{"Hybride", "Électrique"});
-        comboGrandeur = new JComboBox<>(new String[]{"Petit", "Intermédiaire", "Grand"});
+        typesDisponibles = CatalogueVehicules.obtenirTypesActifs();
+        grandeursDisponibles = CatalogueVehicules.obtenirGrandeursActives();
+
+        comboType = new JComboBox<>();
+        for (char type : typesDisponibles) {
+            comboType.addItem(CatalogueVehicules.obtenirDescriptionType(type));
+        }
+        comboGrandeur = new JComboBox<>();
+        for (char grandeur : grandeursDisponibles) {
+            comboGrandeur.addItem(CatalogueVehicules.obtenirDescriptionGrandeur(grandeur));
+        }
         spinnerNombreVehicules = new JSpinner(new SpinnerNumberModel(
                 1, Validation.VEHICULES_MIN, Validation.VEHICULES_MAX, 1));
         spinnerNombreJours = new JSpinner(new SpinnerNumberModel(
@@ -172,12 +184,8 @@ public class PanelLocation extends JPanel {
     }
 
     private void onAjouterVehicule(ActionEvent evenement) {
-        char type = comboType.getSelectedIndex() == 0 ? Vehicule.HYBRIDE : Vehicule.ELECTRIQUE;
-        char grandeur = switch (comboGrandeur.getSelectedIndex()) {
-            case 0 -> Vehicule.PETIT;
-            case 1 -> Vehicule.INTERMEDIAIRE;
-            default -> Vehicule.GRAND;
-        };
+        char type = typesDisponibles.get(comboType.getSelectedIndex());
+        char grandeur = grandeursDisponibles.get(comboGrandeur.getSelectedIndex());
         int nombreVehicules = (int) spinnerNombreVehicules.getValue();
         int nombreJours = (int) spinnerNombreJours.getValue();
         boolean assuranceDesiree = caseAssurance.isSelected();

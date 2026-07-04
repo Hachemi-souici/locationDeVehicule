@@ -97,14 +97,8 @@ public class VehiculeLoue {
      * @return Le montant du rabais appliqué à la location.
      */
     public float calculerRabais() {
-        float prixLocationAvecRabais = 0;
-        if (nombreJoursLocation > JOURS_POUR_RABAIS && vehicule.getTypeVehicule() == Vehicule.ELECTRIQUE
-                && (vehicule.getGrandeurVehicule() == Vehicule.PETIT || vehicule.getGrandeurVehicule() == Vehicule.INTERMEDIAIRE)) {
-            prixLocationAvecRabais = vehicule.getPrixLocationParJour() * RABAIS;
-        } else {
-            prixLocationAvecRabais = 0;
-        }
-        return prixLocationAvecRabais;
+        return GestionReglesRabais.calculerRabais(vehicule.getTypeVehicule(), vehicule.getGrandeurVehicule(),
+                nombreJoursLocation, vehicule.getPrixLocationParJour());
     }
 
 }

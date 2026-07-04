@@ -1,5 +1,7 @@
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Université du Québec à Montréal (UQAM) INF1120 - 010 - Hiver 2025 Travail
@@ -22,7 +24,7 @@ public class StatistiquesVehiculesLoues {
     public static final String CATEGORIE_VEHICULES = """
         Grandeur           Hybride        Électrique
           ********************************************""";
-    private static VehiculeLoue[] lesVehiculesLoues = new VehiculeLoue[6];
+    private static List<VehiculeLoue> lesVehiculesLoues = new ArrayList<>();
 
     /**
      * Augmenter le nombre de véhicules loués par type et par grandeur de
@@ -42,30 +44,18 @@ public class StatistiquesVehiculesLoues {
      * @param vehiculeLoue le véhicule loué
      */
     public static void augmenterNombreVehiculesLoues(VehiculeLoue vehiculeLoue) {
-        // Parcourir le tableau des véhicules loués
-        for (int i = 0; i < lesVehiculesLoues.length; i++) {
-            VehiculeLoue existant = lesVehiculesLoues[i];
-            if (existant != null
-                    && existant.getVehicule().getTypeVehicule() == vehiculeLoue.getVehicule().getTypeVehicule()
+        // Parcourir la liste des véhicules loués
+        for (VehiculeLoue existant : lesVehiculesLoues) {
+            if (existant.getVehicule().getTypeVehicule() == vehiculeLoue.getVehicule().getTypeVehicule()
                     && existant.getVehicule().getGrandeurVehicule() == vehiculeLoue.getVehicule().getGrandeurVehicule()) {
                 // Ajouter le nombre de véhicules loués
                 existant.setNombreVehiculeLoue(existant.getNombreVehiculesLoue() + vehiculeLoue.getNombreVehiculesLoue());
-                //return; // Terminer une fois que la mise à jour est faite
-
-            }
-
-        }
-
-        for (int i = 0; i < lesVehiculesLoues.length; i++) {
-            if (lesVehiculesLoues[i] == null) {
-                lesVehiculesLoues[i] = vehiculeLoue;
-                return; // Terminer après avoir ajouté le véhicule
+                return;
             }
         }
 
-        // Si le tableau est plein (aucune position libre), afficher un message d'erreur
-        System.err.println("Erreur : Le tableau des véhicules loués est plein !");
-
+        // Aucun véhicule loué correspondant trouvé : l'ajouter à la liste
+        lesVehiculesLoues.add(vehiculeLoue);
     }
 
     /**
@@ -115,18 +105,23 @@ public class StatistiquesVehiculesLoues {
         System.out.println("    Nombre de véhicules loués par type et par catégorie");
         System.out.println("    ***************************************************");
 
-        // Entêtes des colonnes
-        System.out.println("    Grandeur           Hybride        Électrique");
-        System.out.println("    ********************************************");
+        List<Character> types = CatalogueVehicules.obtenirTypesActifs();
+        List<Character> grandeurs = CatalogueVehicules.obtenirGrandeursActives();
 
-        // Afficher les données pour chaque grandeur de véhicule
-        String[] grandeurs = {"Petit", "Intermédiaire", "Grand"};
-        char[] codesGrandeurs = {Vehicule.PETIT, Vehicule.INTERMEDIAIRE, Vehicule.GRAND};
+        // Entêtes des colonnes (générées dynamiquement selon les types actifs du catalogue)
+        StringBuilder entete = new StringBuilder(String.format("    %-18s", "Grandeur"));
+        for (char type : types) {
+            entete.append(String.format("%-13s", CatalogueVehicules.obtenirDescriptionType(type)));
+        }
+        System.out.println(entete);
+        System.out.println("    " + "*".repeat(Math.max(0, entete.length() - 4)));
 
-        for (int i = 0; i < grandeurs.length; i++) {
-            int nbHybrides = obtenirNombreVehiculesLoues(Vehicule.HYBRIDE, codesGrandeurs[i]);
-            int nbElectriques = obtenirNombreVehiculesLoues(Vehicule.ELECTRIQUE, codesGrandeurs[i]);
-            System.out.printf("    %-18s %-12d %-12d%n", grandeurs[i], nbHybrides, nbElectriques);
+        for (char grandeur : grandeurs) {
+            StringBuilder ligne = new StringBuilder(String.format("    %-18s", CatalogueVehicules.obtenirDescriptionGrandeur(grandeur)));
+            for (char type : types) {
+                ligne.append(String.format("%-13d", obtenirNombreVehiculesLoues(type, grandeur)));
+            }
+            System.out.println(ligne);
         }
 
         // Fin de tableau

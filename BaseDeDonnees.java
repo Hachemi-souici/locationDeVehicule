@@ -56,6 +56,7 @@ public class BaseDeDonnees {
         obtenirConnexion();
         creerTables();
         amorcerInventaireSiVide();
+        amorcerCataloguesSiVide();
         initialisee = true;
     }
 
@@ -126,10 +127,46 @@ public class BaseDeDonnees {
                 + "  montant_assurance REAL NOT NULL"
                 + ")";
 
+        String creerTypesVehicules
+                = "CREATE TABLE IF NOT EXISTS types_vehicules ("
+                + "  code TEXT PRIMARY KEY,"
+                + "  description TEXT NOT NULL,"
+                + "  actif INTEGER NOT NULL DEFAULT 1"
+                + ")";
+
+        String creerGrandeursVehicules
+                = "CREATE TABLE IF NOT EXISTS grandeurs_vehicules ("
+                + "  code TEXT PRIMARY KEY,"
+                + "  description TEXT NOT NULL,"
+                + "  ordre_affichage INTEGER NOT NULL DEFAULT 0,"
+                + "  actif INTEGER NOT NULL DEFAULT 1"
+                + ")";
+
+        String creerReglesRabais
+                = "CREATE TABLE IF NOT EXISTS regles_rabais ("
+                + "  type_vehicule TEXT NOT NULL,"
+                + "  grandeur_vehicule TEXT NOT NULL,"
+                + "  seuil_jours INTEGER NOT NULL,"
+                + "  pourcentage_rabais REAL NOT NULL,"
+                + "  actif INTEGER NOT NULL DEFAULT 1,"
+                + "  PRIMARY KEY (type_vehicule, grandeur_vehicule)"
+                + ")";
+
+        String creerAdministrateurs
+                = "CREATE TABLE IF NOT EXISTS administrateurs ("
+                + "  identifiant TEXT PRIMARY KEY,"
+                + "  mot_de_passe_hache TEXT NOT NULL,"
+                + "  date_creation TEXT NOT NULL"
+                + ")";
+
         try (Statement instruction = obtenirConnexion().createStatement()) {
             instruction.execute(creerVehiculesDisponibles);
             instruction.execute(creerFactures);
             instruction.execute(creerVehiculesLoues);
+            instruction.execute(creerTypesVehicules);
+            instruction.execute(creerGrandeursVehicules);
+            instruction.execute(creerReglesRabais);
+            instruction.execute(creerAdministrateurs);
         }
     }
 
@@ -163,6 +200,93 @@ public class BaseDeDonnees {
                 instructionPreparee.addBatch();
             }
             instructionPreparee.executeBatch();
+        }
+    }
+
+    /**
+     * Amorce les tables de référence du catalogue (types de véhicules,
+     * grandeurs, règles de rabais, compte administrateur), mais seulement si
+     * elles sont vides. Reproduit exactement les valeurs qui étaient
+     * auparavant codées en dur (Hybride/Électrique, Petit/Intermédiaire/Grand,
+     * rabais de 20% après 15 jours sur Électrique Petit/Intermédiaire), afin
+     * que le comportement existant ne change pas après cette migration.
+     *
+     * @throws SQLException si l'insertion des données de départ échoue.
+     */
+    private static void amorcerCataloguesSiVide() throws SQLException {
+        if (estVide("types_vehicules")) {
+            String insertion = "INSERT INTO types_vehicules (code, description, actif) VALUES (?, ?, 1)";
+            try (var instructionPreparee = obtenirConnexion().prepareStatement(insertion)) {
+                instructionPreparee.setString(1, "H");
+                instructionPreparee.setString(2, "Hybride");
+                instructionPreparee.addBatch();
+                instructionPreparee.setString(1, "E");
+                instructionPreparee.setString(2, "Électrique");
+                instructionPreparee.addBatch();
+                instructionPreparee.executeBatch();
+            }
+        }
+
+        if (estVide("grandeurs_vehicules")) {
+            String insertion = "INSERT INTO grandeurs_vehicules (code, description, ordre_affichage, actif) VALUES (?, ?, ?, 1)";
+            try (var instructionPreparee = obtenirConnexion().prepareStatement(insertion)) {
+                instructionPreparee.setString(1, "P");
+                instructionPreparee.setString(2, "Petit");
+                instructionPreparee.setInt(3, 1);
+                instructionPreparee.addBatch();
+                instructionPreparee.setString(1, "I");
+                instructionPreparee.setString(2, "Intermédiaire");
+                instructionPreparee.setInt(3, 2);
+                instructionPreparee.addBatch();
+                instructionPreparee.setString(1, "G");
+                instructionPreparee.setString(2, "Grand");
+                instructionPreparee.setInt(3, 3);
+                instructionPreparee.addBatch();
+                instructionPreparee.executeBatch();
+            }
+        }
+
+        if (estVide("regles_rabais")) {
+            String insertion = "INSERT INTO regles_rabais (type_vehicule, grandeur_vehicule, seuil_jours, pourcentage_rabais, actif) "
+                    + "VALUES (?, ?, ?, ?, 1)";
+            try (var instructionPreparee = obtenirConnexion().prepareStatement(insertion)) {
+                instructionPreparee.setString(1, "E");
+                instructionPreparee.setString(2, "P");
+                instructionPreparee.setInt(3, 15);
+                instructionPreparee.setDouble(4, 0.20);
+                instructionPreparee.addBatch();
+                instructionPreparee.setString(1, "E");
+                instructionPreparee.setString(2, "I");
+                instructionPreparee.setInt(3, 15);
+                instructionPreparee.setDouble(4, 0.20);
+                instructionPreparee.addBatch();
+                instructionPreparee.executeBatch();
+            }
+        }
+
+        if (estVide("administrateurs")) {
+            String insertion = "INSERT INTO administrateurs (identifiant, mot_de_passe_hache, date_creation) VALUES (?, ?, ?)";
+            try (var instructionPreparee = obtenirConnexion().prepareStatement(insertion)) {
+                instructionPreparee.setString(1, "admin");
+                instructionPreparee.setString(2, Hachage.sha256Hex("admin"));
+                instructionPreparee.setString(3, java.time.LocalDateTime.now().toString());
+                instructionPreparee.executeUpdate();
+            }
+            System.out.println("[SÉCURITÉ] Compte administrateur par défaut créé (identifiant: admin, mot de passe: admin). Changez ce mot de passe dans l'interface d'administration !");
+        }
+    }
+
+    /**
+     * Vérifie si une table est vide.
+     *
+     * @param nomTable le nom de la table à vérifier.
+     * @return vrai si la table ne contient aucune ligne.
+     * @throws SQLException si la requête échoue.
+     */
+    private static boolean estVide(String nomTable) throws SQLException {
+        try (Statement instruction = obtenirConnexion().createStatement();
+                var resultat = instruction.executeQuery("SELECT COUNT(*) FROM " + nomTable)) {
+            return resultat.next() && resultat.getInt(1) == 0;
         }
     }
 

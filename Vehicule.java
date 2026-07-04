@@ -83,16 +83,7 @@ public class Vehicule {
      * @return La description du type du véhicule.
      */
     public String getDescriptionTypeVehicule() {
-        String discreptionTypeVehicule = "";
-        switch (typeVehicule) {
-            case HYBRIDE:
-                discreptionTypeVehicule = DISCRIPTION_HYBRIDE;
-                break;
-            case ELECTRIQUE:
-                discreptionTypeVehicule = DISCRIPTION_ELECTRIQUE;
-                break;
-        }
-        return discreptionTypeVehicule;
+        return CatalogueVehicules.obtenirDescriptionType(typeVehicule);
     }
 
     /**
@@ -101,18 +92,6 @@ public class Vehicule {
      * @return La description de la grandeur du véhicule.
      */
     public String getDescriptionGrandeurVehicule() {
-        String discreptionGrandeurVehicule = "";
-        switch (grandeurVehicule) {
-            case PETIT:
-                discreptionGrandeurVehicule = DISCRIPTION_PETIT;
-                break;
-            case INTERMEDIAIRE:
-                discreptionGrandeurVehicule = DISCRIPTION_INTERMIDIAIRE;
-                break;
-            case GRAND:
-                discreptionGrandeurVehicule = DISCRIPTION_GRANDE;
-                break;
-        }
-        return discreptionGrandeurVehicule;
+        return CatalogueVehicules.obtenirDescriptionGrandeur(grandeurVehicule);
     }
 }
